@@ -4,9 +4,12 @@ const { useState, useEffect, useRef } = React;
 function Dashboard() {
   const [errors, setErrors] = useState([]);
   const [executions, setExecutions] = useState([]);
+  const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(true);
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
+  const tradeChartRef = useRef(null);
+  const tradeChartInstance = useRef(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -22,8 +25,15 @@ function Dashboard() {
         .order('timestamp', { ascending: false })
         .limit(50);
 
+      const { data: tradeData } = await supabase
+        .from('executed_trades')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(200);
+
       setErrors(errorData ?? []);
       setExecutions(execData ?? []);
+      setTrades(tradeData ?? []);
       setLoading(false);
     }
     fetchData();
@@ -67,6 +77,45 @@ function Dashboard() {
       },
     });
   }, [errors]);
+
+  useEffect(() => {
+    if (!tradeChartRef.current) return;
+
+    const volumes = {};
+    trades.forEach((t) => {
+      const day = t.timestamp.split('T')[0];
+      const amount = parseFloat(t.trade_amount) || 0;
+      volumes[day] = (volumes[day] || 0) + amount;
+    });
+    const labels = Object.keys(volumes).sort();
+    const data = labels.map((d) => volumes[d]);
+
+    if (tradeChartInstance.current) {
+      tradeChartInstance.current.destroy();
+    }
+
+    tradeChartInstance.current = new Chart(tradeChartRef.current, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Trade Volume per day',
+            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+            borderColor: 'rgb(54, 162, 235)',
+            borderWidth: 1,
+            fill: true,
+            data,
+          },
+        ],
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true },
+        },
+      },
+    });
+  }, [trades]);
 
   if (loading) {
     return React.createElement('div', { className: 'loading' }, 'Loading...');
@@ -133,6 +182,12 @@ function Dashboard() {
       null,
       React.createElement('h2', null, 'Error Chart'),
       React.createElement('canvas', { ref: chartRef })
+    ),
+    React.createElement(
+      'section',
+      null,
+      React.createElement('h2', null, 'Trade Volume Chart'),
+      React.createElement('canvas', { ref: tradeChartRef })
     )
   );
 }
