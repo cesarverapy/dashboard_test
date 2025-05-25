@@ -1,5 +1,4 @@
 # Agent Dashboard
-
 This project contains a simple dashboard that visualises logs from the agent stored in Supabase.
 
 ## Setup
