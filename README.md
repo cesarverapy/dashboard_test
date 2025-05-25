@@ -1,45 +1,37 @@
 # Agent Dashboard
-
-This project includes a lightweight dashboard located in the `dashboard` folder.
-It displays recent entries from the `error_logs`, `execution_logs`, and
-`executed_trades` tables stored in Supabase. Aggregate charts show error counts
-and trade volume over time.
+This project contains a simple dashboard that visualises logs from the agent stored in Supabase.
 
 ## Setup
 
-1. Copy `.env.example` to `.env` and fill in your Supabase credentials.
-   These variables are read in `dashboard/supabaseClient.js` via
-   `import.meta.env` when using a bundler such as Vite. If you are serving the
-   files directly, you can provide the credentials using global variables
-   `SUPABASE_URL` and `SUPABASE_ANON_KEY` in a script tag.
+1. Copy `.env.example` to `.env` and fill in your Supabase credentials:
 
-2. Serve the `dashboard` directory. Any static HTTP server works. For example:
+```bash
+cp .env.example .env
+# edit .env with your values
+```
 
-   ```bash
-   npx serve dashboard
-   ```
+`dashboard/supabaseClient.js` reads the variables `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY` when bundled with a tool like Vite. If no bundler is
+used you can define `window.SUPABASE_URL` and `window.SUPABASE_ANON_KEY` in a
+script before loading `app.js`.
 
-   or using Python:
+2. Serve the dashboard directory using any static server:
 
-   ```bash
-   cd dashboard
-   python3 -m http.server 8080
-   ```
+```bash
+npx serve dashboard
+# or
+python3 -m http.server 8080 -d dashboard
+```
 
-3. Open the served `index.html` in your browser. The dashboard will connect to
-   Supabase and display recent logs.
+Then open `http://localhost:8080` (or the port you chose) in your browser.
 
-## Expected Data Schema
+## Features
 
-The dashboard expects three tables in Supabase:
+- Lists the 50 most recent executions and errors
+- Automatically refreshes data every 30 seconds
+- Charts execution volume by action and error counts over time using Chart.js
 
-- **error_logs** – should contain at least `timestamp` and `message` columns.
-- **execution_logs** – should contain `timestamp`, `action`, `symbol`, and
-  `details` columns describing each agent decision.
-- **executed_trades** – should contain `timestamp` and `trade_amount` columns for
-  aggregating trade volume.
-
-## Development
-
-The dashboard uses plain React from a CDN. Auto-refresh and charting features
-are implemented in `dashboard/app.js`.
+The dashboard expects two tables in Supabase: `execution_logs` and `error_logs`.
+Each should contain a `timestamp` column. Executions benefit from fields like
+`action`, `symbol`, or `details`, while errors should include a descriptive
+`message`.

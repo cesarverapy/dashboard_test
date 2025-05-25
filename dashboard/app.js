@@ -4,118 +4,81 @@ const { useState, useEffect, useRef } = React;
 function Dashboard() {
   const [errors, setErrors] = useState([]);
   const [executions, setExecutions] = useState([]);
-  const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(true);
-  const chartRef = useRef(null);
-  const chartInstance = useRef(null);
-  const tradeChartRef = useRef(null);
-  const tradeChartInstance = useRef(null);
+  const execChartRef = useRef(null);
+  const errorChartRef = useRef(null);
 
   useEffect(() => {
-    async function fetchData() {
-      const { data: errorData } = await supabase
-        .from('error_logs')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(50);
-
-      const { data: execData } = await supabase
-        .from('execution_logs')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(50);
-
-      const { data: tradeData } = await supabase
-        .from('executed_trades')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(200);
-
-      setErrors(errorData ?? []);
-      setExecutions(execData ?? []);
-      setTrades(tradeData ?? []);
-      setLoading(false);
-    }
     fetchData();
-    const id = setInterval(fetchData, 30000);
-    return () => clearInterval(id);
+    const interval = setInterval(fetchData, 30000); // refresh every 30 seconds
+    return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (!chartRef.current) return;
+  async function fetchData() {
+    const { data: errorData } = await supabase
+      .from('error_logs')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .limit(50);
 
-    const counts = {};
-    errors.forEach((err) => {
-      const day = err.timestamp.split('T')[0];
-      counts[day] = (counts[day] || 0) + 1;
-    });
-    const labels = Object.keys(counts).sort();
-    const data = labels.map((d) => counts[d]);
+    const { data: execData } = await supabase
+      .from('execution_logs')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .limit(50);
 
-    if (chartInstance.current) {
-      chartInstance.current.destroy();
+    const errorsList = errorData ?? [];
+    const executionsList = execData ?? [];
+    setErrors(errorsList);
+    setExecutions(executionsList);
+    setLoading(false);
+    updateCharts(errorsList, executionsList);
+  }
+
+  function updateCharts(errorsList, executionsList) {
+    // Execution chart: counts per action (buy/sell)
+    const actionCounts = executionsList.reduce((acc, e) => {
+      if (e.action) {
+        acc[e.action] = (acc[e.action] || 0) + 1;
+      }
+      return acc;
+    }, {});
+    const actions = Object.keys(actionCounts);
+    const actionValues = Object.values(actionCounts);
+
+    if (execChartRef.current) {
+      execChartRef.current.destroy();
     }
-
-    chartInstance.current = new Chart(chartRef.current, {
+    const ctx1 = document.getElementById('executionChart').getContext('2d');
+    execChartRef.current = new Chart(ctx1, {
       type: 'bar',
       data: {
-        labels,
-        datasets: [
-          {
-            label: 'Errors per day',
-            backgroundColor: 'rgba(255, 99, 132, 0.5)',
-            borderColor: 'rgb(255, 99, 132)',
-            borderWidth: 1,
-            data,
-          },
-        ],
-      },
-      options: {
-        scales: {
-          y: { beginAtZero: true },
-        },
-      },
+        labels: actions,
+        datasets: [{ label: 'Executions', data: actionValues, backgroundColor: '#60a5fa' }]
+      }
     });
-  }, [errors]);
 
-  useEffect(() => {
-    if (!tradeChartRef.current) return;
+    // Error chart: count per day
+    const errorCounts = errorsList.reduce((acc, e) => {
+      const day = e.timestamp ? e.timestamp.slice(0, 10) : 'unknown';
+      acc[day] = (acc[day] || 0) + 1;
+      return acc;
+    }, {});
+    const days = Object.keys(errorCounts);
+    const dayValues = Object.values(errorCounts);
 
-    const volumes = {};
-    trades.forEach((t) => {
-      const day = t.timestamp.split('T')[0];
-      const amount = parseFloat(t.trade_amount) || 0;
-      volumes[day] = (volumes[day] || 0) + amount;
-    });
-    const labels = Object.keys(volumes).sort();
-    const data = labels.map((d) => volumes[d]);
-
-    if (tradeChartInstance.current) {
-      tradeChartInstance.current.destroy();
+    if (errorChartRef.current) {
+      errorChartRef.current.destroy();
     }
-
-    tradeChartInstance.current = new Chart(tradeChartRef.current, {
+    const ctx2 = document.getElementById('errorChart').getContext('2d');
+    errorChartRef.current = new Chart(ctx2, {
       type: 'line',
       data: {
-        labels,
-        datasets: [
-          {
-            label: 'Trade Volume per day',
-            backgroundColor: 'rgba(54, 162, 235, 0.5)',
-            borderColor: 'rgb(54, 162, 235)',
-            borderWidth: 1,
-            fill: true,
-            data,
-          },
-        ],
-      },
-      options: {
-        scales: {
-          y: { beginAtZero: true },
-        },
-      },
+        labels: days,
+        datasets: [{ label: 'Errors', data: dayValues, borderColor: '#f87171', fill: false }]
+      }
     });
-  }, [trades]);
+  }
 
   if (loading) {
     return React.createElement('div', { className: 'loading' }, 'Loading...');
@@ -180,14 +143,14 @@ function Dashboard() {
     React.createElement(
       'section',
       null,
-      React.createElement('h2', null, 'Error Chart'),
-      React.createElement('canvas', { ref: chartRef })
+      React.createElement('h2', null, 'Execution Summary'),
+      React.createElement('canvas', { id: 'executionChart' })
     ),
     React.createElement(
       'section',
       null,
-      React.createElement('h2', null, 'Trade Volume Chart'),
-      React.createElement('canvas', { ref: tradeChartRef })
+      React.createElement('h2', null, 'Error Trend'),
+      React.createElement('canvas', { id: 'errorChart' })
     )
   );
 }
