@@ -1,0 +1,51 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f7f7f7;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+  background: #1f2937;
+  color: white;
+  margin: 0;
+  padding: 1rem 2rem;
+}
+
+section {
+  margin: 2rem;
+  background: white;
+  padding: 1rem;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+th, td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+th {
+  background: #e5e7eb;
+}
+
+.error-time {
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.loading {
+  margin: 2rem;
+}
+
+canvas {
+  max-width: 100%;
+}
