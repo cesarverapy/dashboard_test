@@ -1,0 +1,2785 @@
+{
+  "name": "pre1.7",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "12f299a2-f67f-424a-bb52-207bbd86d5b4",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "Agent stopped due to max iterations.",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "0386893f-6d8f-4e61-ad19-6cb35b166394",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "Selected Coins for Analysis: NONE",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3780,
+        825
+      ],
+      "id": "8f734bbd-50c1-48b0-91d4-462b7ce71fc7",
+      "name": "Check If Valid Output From Scouter"
+    },
+    {
+      "parameters": {
+        "tableId": "executed_trades",
+        "dataToSend": "autoMapInputData"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1108,
+        775
+      ],
+      "id": "427a2b72-f614-4e12-9487-afee1e1162e7",
+      "name": "Store Trade Log",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -400,
+        745
+      ],
+      "id": "e775866b-215f-4b1d-ab41-979f8b8ec01a",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "TMg47sy3gpyHM1Ya",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "ai_executed_trades",
+        "toolDescription": "Use this tool to retrieve the trade logs",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "topK": 15,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.1,
+      "position": [
+        -488,
+        547.5
+      ],
+      "id": "7449c0db-fe6c-4df4-bf8c-6e0ddcd5c39d",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const fill = $json.fills?.[0] || {};\n\nreturn [{\n  json: {\n    timestamp: new Date($json.transactTime).toISOString(),\n    symbol: $json.symbol,\n    side: $json.side,\n    quantity: parseFloat(fill.qty || $json.executedQty),\n    price: parseFloat(fill.price),\n    fee: parseFloat(fill.commission),\n    fee_asset: fill.commissionAsset,\n    trade_amount: parseFloat($json.cummulativeQuoteQty),\n    strategy: $json.strategy || \"unknown\",\n    reason: $json.reason || \"Executed by AI\",\n    order_id: $json.orderId,\n    source: \"AI Agent\"\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        888,
+        775
+      ],
+      "id": "d4ae24d0-2593-4baa-b4d2-2fe1d828bd0e",
+      "name": "Structure Trade Log"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "fieldsToMatchString": "symbol",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        -2900,
+        875
+      ],
+      "id": "b675a593-a377-4319-961b-9d31502d7695",
+      "name": "Merge Crypto Data"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.binance.com/api/v3/ticker/24hr?symbol={{ $json.symbol }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3120,
+        475
+      ],
+      "id": "b7e398b9-b330-4ed6-95c6-38ad02647546",
+      "name": "Fetch Prices 24hr",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "order",
+        "side": "SELL",
+        "symbol": "={{ $('Decision Maker Agent').item.json.output.sellSymbol }}",
+        "quantity": "={{ $('Decision Maker Agent').item.json.output.sellQuantity }}",
+        "type": "MARKET"
+      },
+      "type": "n8n-nodes-binance-trade.binance",
+      "typeVersion": 1,
+      "position": [
+        668,
+        725
+      ],
+      "id": "b471da2e-a2a7-464d-9f46-40b4ab432efc",
+      "name": "SELL Order"
+    },
+    {
+      "parameters": {
+        "operation": "order",
+        "symbol": "={{ $('Decision Maker Agent').item.json.output.buySymbol }}",
+        "quantity": "={{ $('Decision Maker Agent').item.json.output.buyQuantity }}",
+        "type": "MARKET"
+      },
+      "type": "n8n-nodes-binance-trade.binance",
+      "typeVersion": 1,
+      "position": [
+        668,
+        525
+      ],
+      "id": "227b9de7-9ec9-4c6d-8d36-b6fed1a533e4",
+      "name": "BUY Order"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.action }}",
+                    "rightValue": "BUY",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6ce9323e-0e5d-492a-be8f-4dc111c5a4ba"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "BUY"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3a64f525-8d9c-4175-8843-1c66a1081ecf",
+                    "leftValue": "={{ $json.output.action }}",
+                    "rightValue": "SELL",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SELL"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1ab82dee-594d-4003-b764-54c55aa5906d",
+                    "leftValue": "={{ $json.output.action }}",
+                    "rightValue": "REBALANCE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "REBALANCE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        8,
+        625
+      ],
+      "id": "7bc81393-7426-4ffa-9f4a-1a27f324929e",
+      "name": "DECISION"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f3333926-6a77-4ba1-b390-4fcbfca45dbc",
+              "leftValue": "={{ $json.output.action }}",
+              "rightValue": "WAIT",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1488,
+        725
+      ],
+      "id": "f25fa23c-b592-4f34-80ee-65b89952b963",
+      "name": "ORDER"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-binance-trade.binance",
+      "typeVersion": 1,
+      "position": [
+        -4880,
+        750
+      ],
+      "id": "e210da78-a652-4912-b653-20d5a2ce99f9",
+      "name": "Get Account",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "credentials": {
+        "binanceApi": {
+          "id": "RVw3OJiGaMziuiY8",
+          "name": "Binance account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a professional Strategist Agent in a high-performance crypto trading system.\nInputs:\n\n* Available USDT: {{ $('Aggregate (USDT + Holdings)').first().json.balance }}\n* Current Holdings: {{ $('Aggregate (USDT + Holdings)').first().json.holdings }}\n* Scouted Token Summaries: {{ $json.summary }} (includes Ask, Bid, Spread, 24h Change %, Volume for each token)\n\nStrategizing Objective:\n\n* Analyze your current holdings and the scouted market coins\n* Evaluate at least **7–10** different short-term trading strategies before deciding.\n* For **each** of the four possible actions—**BUY**, **SELL**, **WAIT**, **REBALANCE**—briefly explain why it **is** or **is NOT** appropriate, then choose exactly one.\n\nAvailable Strategies to Evaluate:\nMomentum Trading\nBreakout Trading\nMean Reversion\nSupport Bounce\nRange Trading\nSwing Trading\nNews Catalyst Trading\nExhaustion Sell-Off\nVolatility Breakout\nLiquidity Squeeze\nTrend Reversal\nStrong Trend Following\nAny other you find appropriate\n\nDecision Criteria:\n\n* Only recommend a strategy if estimated success probability > 60%.\n* Assess each strategy’s **Risk Factor** (Low, Medium, High) and ensure it aligns with the user’s risk tolerance.\n* Use the Scouted Token Summaries’ Spread and Volume to gauge execution risk and liquidity.\n* Only select real, high-liquidity Binance USDT pairs (e.g. BTCUSDT, ETHUSDT, SOLUSDT).\n* Only recommend BUY or SELL if resulting trade value > \\$5 USDT.\n* If no strong edge exists, choose **WAIT**.\n\nRisk Management Rules:\n\n* **Max Risk per Trade:** Risk no more than 1–2% of total equity on any single trade.\n* **Stop-Loss:** Place initial stop at 1.5× ATR below entry or fixed 2% below entry, whichever is wider.\n* **Take-Profit / R\\:R:** Only enter trades with reward-to-risk ≥ 2:1; use trailing stop to lock in profits after 1× R.\n* **Drawdown Limit:** If cumulative drawdown > 10%, switch to **WAIT** and reevaluate.\n* **Position Sizing:** Size = (1% of equity) ÷ (stop distance in USDT).\n* **Max Exposure:** No more than 25% of portfolio in any single symbol.\n\nAllocation Guidelines:\n\n* Strong setups (> 80% signal) → allocate 70–90% of available USDT.\n* Medium setups (50–80% signal) → allocate 40–60%.\n* Low-confidence or risk too high → **WAIT**.\n\nRebalance Rule (use only if USDT < \\$5 and a stronger opportunity exists by ≥ 20%):\n\n* Identify weakest current holding and propose **REBALANCE**:\n  • SELL \\[weak symbol] → BUY \\[strong symbol]\n  • Sell Allocation: \\[YY]%\n  • Buy Allocation: \\[XX]%\n  • Ensure the risk factor of the new position ≤ current risk tolerance.\n\n**Output Format (STRICT TEXT, no JSON, no commentary)**\n\nStrategy: \\[Strategy Name]\nRisk Factor: \\[Low/Medium/High]\nReasoning: \\[Brief explanation of why this strategy wins after evaluating 7–10 and considering BUY, SELL, WAIT, REBALANCE]\n\nAction:\n• BUY \\[SYMBOL] — Buy Allocation: \\[XX]% — Risk: \\[Low/Medium/High]\n—or—\n• SELL \\[SYMBOL] — Sell Allocation: \\[XX]% — \\[Brief reason] — Risk: \\[Low/Medium/High]\n—or—\n• WAIT — \\[Brief reason] — Risk: \\[Low/Medium/High]\n—or—\n• REBALANCE — SELL \\[SYMBOL₁] → BUY \\[SYMBOL₂]\n  Sell Allocation: \\[YY]%\n  Buy Allocation: \\[XX]%\n  Risk Factor: \\[Low/Medium/High]\n  Reason: \\[Brief]\n",
+        "options": {
+          "systemMessage": "You are a disciplined professional crypto strategist focused on maximizing profits while protecting capital.\n  Your role is to analyze market conditions methodically, compare multiple strategies, and make only high-probability trading decisions.\n  Only act when the probability of success is significantly above average (>60%).\n  Never act impulsively. Always explain your thinking clearly and concisely.\n  Prioritize diversification and risk management.\n  To maximize profit:\n    • High-conviction (>80%) trades → allocate 80–100% of available USDT.\n    • Moderate-conviction (60–80%) trades → allocate 50–70%.\n    • Borderline setups (55–60%) → allocate 20–30% and scale up on confirmation.\n    • Stagger entries in 2–3 tranches (50% at trigger, 25% on follow-through, 25% on sustained move).\n    • Use dynamic stop-loss at 1× ATR or 5%, whichever is tighter; trail stops at 5–10%.\n    • Scale out: sell 25% at 5–10% gain, 25% at 15% gain, trail the rest.\n    • Reserve 10–20% capital for ultra-high-volatility small-cap sprints (>20% moves) with tight stops.\n    • Require confluence of ≥2 signals for full allocation; single-signal trades capped at 50%.\n    • Size each trade so that 1% of portfolio value is at risk.\n    • Every 4 hours, rebalance or trim any position down >50% ATR drawdown.\n    • If price revisits entry zone within 15–30 minutes without confirmation, downsize or exit."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -2240,
+        875
+      ],
+      "id": "0e87fad5-3790-4fbd-8c3a-001fb78c493d",
+      "name": "Strategist Agent",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an Execution Planner AI inside a high‐performance crypto trading agent focused on short‐term profit opportunities on Binance Spot USDT pairs.\n\nYou are given **pre‐processed and real‐time‐verified inputs**:\n- **Proposed Action**:       {{ $('LLM Parser for Strategist Output').item.json.output.action }}\n- **Proposed Symbol to Buy**:  {{ $('LLM Parser for Strategist Output').item.json.output.buySymbol }}\n- **Proposed Symbol to Sell**: {{ $('LLM Parser for Strategist Output').item.json.output.sellSymbol }}\n- **Strategy Used**:         {{ $('LLM Parser for Strategist Output').item.json.output.strategy }}\n- **Reasoning Provided**:     {{ $('LLM Parser for Strategist Output').item.json.output.reason }}\n- **Proposed Sell Allocation**: {{ $('Compute Trade Context').item.json.sellAllocationPercent }}%\n- **Proposed Buy Allocation**:  {{ $('Compute Trade Context').item.json.buyAllocationPercent }}%\n- **Available USDT Balance**:   {{ $('Compute Trade Context').item.json.freeUsdt }}\n- **Total USDT After Sell**:    {{ $('Compute Trade Context').item.json.usdt }}\n- **Computed Sell Quantity**:   {{ $('Compute Trade Context').item.json.sellQuantity }}\n- **Computed Sell Amount**:     {{ $('Compute Trade Context').item.json.sellProceedsUsdt }}\n- **Computed Buy Quantity**:    {{ $('Compute Trade Context').item.json.buyQuantity }}\n- **Computed Buy Amount**:      {{ $('Compute Trade Context').item.json.buyAmount }}\n- **Minimum Notional**:         {{ $('Compute Trade Context').item.json.marketData[0].filters.find(f => f.filterType === 'NOTIONAL').minNotional }} USDT\n- **Real-time Spread**:         {{ $('Compute Trade Context').item.json.marketData[0].spreadPercent }}%\n- **Bid Depth**:                {{ $('Compute Trade Context').item.json.marketData[0].bidQty }}\n- **Ask Depth**:                {{ $('Compute Trade Context').item.json.marketData[0].askQty }}\n- **24 h Change%**:             {{ $('Compute Trade Context').item.json.marketData[0].priceChangePercent }}%\n- **24 h Volume**:              {{ $('Compute Trade Context').item.json.marketData[0].volume }}\n- **Current Holdings**:         {{ $('Aggregate (USDT + Holdings)').first().json.holdings }}\n\n**Your job**: apply every mandatory safety check (symbol format, min-size, allocation caps, spread, volatility, diversification & liquidity) **only** against the supplied inputs—do **not** recalculate anything.\n\nApprove the trade (**BUY / SELL / REBALANCE**) **only** if **all** checks pass. Otherwise output **WAIT**.\n\n**Output Format (STRICT)**\n\nFinal Decision:       [BUY / SELL / REBALANCE / WAIT]  \nFinal Sell Symbol:    [SYMBOL or None]  \nFinal Buy Symbol:     [SYMBOL or None]  \nFinal Sell Allocation: [XX]%  \nFinal Buy Allocation:  [XX]%  \nFinal Sell Quantity:   [X.XXX]  \nFinal Sell Amount:     [X.XXX]  \nFinal Buy Quantity:    [X.XXX]  \nFinal Buy Amount:      [X.XXX]  \nFinal Reason:          [brief justification]  \n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a strict, disciplined Execution Planner inside an autonomous crypto trading agent.\n\nYour role is to critically validate every proposed BUY, SELL, or REBALANCE action against comprehensive, real-time market data and unwavering risk-management rules:\n\n* **Real-Time Checks**: enforce spread, liquidity (bid/ask depth), 24 h volume and volatility thresholds.\n* **Allocation Caps**: honor the strategist’s sell and buy allocations but never exceed them.\n* **Diversification Limits**: ensure no single asset exceeds predefined portfolio concentration (e.g. max 50% per position).\n* **Notional & Size Rules**: enforce Binance’s minimum notional and LOT\\_SIZE limits.\n* **Capital Protection**: preserve principal; if any check fails, output WAIT.\n\nThink methodically, respond in the exact format, and when in doubt—or if any safety check is incomplete or breached: WAIT.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -488,
+        325
+      ],
+      "id": "cb1a0320-f515-4aa7-8142-70cad45d311c",
+      "name": "Decision Maker Agent",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -5540,
+        750
+      ],
+      "id": "c2246059-1a67-4a3d-8e90-4986dbe61052",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().filter(item => {\n  const symbol = item.json.symbol;\n  return symbol && symbol.endsWith('USDT') && symbol.length >= 7;\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3340,
+        875
+      ],
+      "id": "6bf37e7b-211f-4c23-92e2-e1bd91f97806",
+      "name": "Filter Symbols"
+    },
+    {
+      "parameters": {
+        "jsCode": "const all = $input.all().map(item => item.json.summary);\nreturn [{\n  json: {\n    summary: all.join(\"\\n\")\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2460,
+        875
+      ],
+      "id": "11ff2148-af65-4805-b151-a9cfa39658fd",
+      "name": "Merges Summary"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const {\n  symbol,\n  askPrice,\n  bidPrice,\n  askQty,\n  bidQty,\n  priceChangePercent,\n  volume\n} = $json;\n\nconst spread = ((parseFloat(askPrice) - parseFloat(bidPrice)) / parseFloat(askPrice)) * 100;\n\nreturn {\n  json: {\n    symbol,\n    askPrice: +parseFloat(askPrice).toFixed(6),\n    bidPrice: +parseFloat(bidPrice).toFixed(6),\n    askQty: +parseFloat(askQty),\n    bidQty: +parseFloat(bidQty),\n    priceChangePercent: +parseFloat(priceChangePercent),\n    volume: +parseFloat(volume),\n    spreadPercent: +spread.toFixed(4),\n    summary: `- ${symbol}: Ask $${askPrice}, Bid $${bidPrice}, Spread ${spread.toFixed(2)}%, 24h Change ${priceChangePercent}%, Volume ${parseFloat(volume).toLocaleString()}`\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2680,
+        875
+      ],
+      "id": "d25c60df-b16d-4050-b823-dd454d2e6b27",
+      "name": "Summarize Data"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.binance.com/api/v3/ticker/bookTicker?symbol={{ $json.symbol }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3120,
+        1425
+      ],
+      "id": "5d43428e-3fd6-4466-9211-148cf0ff5c7b",
+      "name": "Fetch Prices",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const assets = $input.all().map(item => item.json);\n\nlet totalUSDT = assets.find(a => a.asset === \"USDT\")?.free || 0;\n\nlet holdings = assets\n  .filter(a => a.asset !== \"USDT\")\n  .map(a => `${a.asset}: ${a.free}`)\n  .join(\", \");\n\nreturn [\n  {\n    json: {\n      balance: totalUSDT,\n      holdings: holdings || \"None\",\n      holdingsRaw: assets\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4440,
+        750
+      ],
+      "id": "82a76936-3431-4608-a671-60eb41c0bf96",
+      "name": "Aggregate (USDT + Holdings)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input: Binance Get Account output\nconst balances = $json.balances;\n\n// Filter to only coins with a nonzero total balance\nconst ownedCoins = balances\n  .filter(asset => \n    parseFloat(asset.free) > 0 || parseFloat(asset.locked) > 0\n  )\n  .map(asset => ({\n    asset: asset.asset,\n    free: parseFloat(asset.free),\n    locked: parseFloat(asset.locked),\n    total: parseFloat(asset.free) + parseFloat(asset.locked)\n  }));\n\nreturn ownedCoins.map(coin => ({ json: coin }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4660,
+        750
+      ],
+      "id": "7d7b2aed-f4cb-4f50-8e75-8b99c0e5eda3",
+      "name": "Filter Balances"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output || \"\";\n\n// Match all bolded coin symbols (works for markdown bullets and numbers)\nconst markdownMatches = [...raw.matchAll(/\\*\\*(\\w+USDT)\\*\\*/g)];\nlet coinList = markdownMatches.map(m => m[1]);\n\n// Also match any kind of 'Selected Coins for Analysis' (bolded or plain)\nconst inlineMatch = raw.match(/Selected Coins for Analysis:[:\\s]*([A-Z,\\s]+)/i);\nif (inlineMatch) {\n  const inlineCoins = inlineMatch[1].replace(/\\s/g, \"\").split(\",\");\n  coinList = [...coinList, ...inlineCoins];\n}\n\n// Deduplicate\ncoinList = [...new Set(coinList)];\n\nreturn coinList.map(coin => ({ json: { symbol: coin } }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3560,
+        875
+      ],
+      "id": "b25ed0c2-7987-4c7c-aaab-2434fec0fee0",
+      "name": "Extract Selected Coins"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst pad = (n, z = 2) => String(n).padStart(z, '0');\n\n// Paraguay is GMT-3 (no DST currently)\nconst offsetMs = 3 * 60 * 60 * 1000;\nconst local = new Date(now.getTime() - offsetMs);\n\nconst formatted = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())} ` +\n                  `${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(local.getSeconds())}.` +\n                  `${pad(local.getMilliseconds(), 3)}-03:00`;\n\nreturn [{\n  json: {\n    execution_id: $execution.id,\n    ended_at: formatted,\n    status: 'success'\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        775
+      ],
+      "id": "73ac43b6-66ad-4491-90f5-925410c209d8",
+      "name": "Log end"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Fetch up‐to‐date (last 24h) Google‐style search results via Serper’s API by POSTing your query in JSON and authenticating with your X-API-KEY.",
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendQuery": true,
+        "parametersQuery": {
+          "values": [
+            {
+              "name": "q"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "X-API-KEY",
+              "valueProvider": "fieldValue",
+              "value": "7898e4667f392a94c65bf907286fb6768baa9f31"
+            },
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "parametersBody": {
+          "values": [
+            {
+              "name": "q"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -4100,
+        970
+      ],
+      "id": "47200836-d7b1-4efd-b44c-4ba3c823652c",
+      "name": "SerperSearch"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=```\nYou have {{$json.balance}} USDT available for investment.  \nYou also currently hold: {{$json.holdings}}.\n\n---\n\n**Scouting Objective:**  \nFind up to **10 high-risk, high-reward** coins for short-term trading (1–3 days), including breakout and small-cap opportunities.\n\n---\n\n**Real-Time Constraints:**\n\n- Use **only real-time Binance market data and live external information**.  \n- Do **not** rely on past knowledge, speculation, or training data.  \n- Only use news from the **last 24 hours** — we are on {{ $('Schedule Trigger').first().json['Readable date'] }}.  \n- Always verify with current volume, sentiment, and actual headlines.\n\n---\n\n**Mandatory Filters:**\n\n- Must be paired with USDT on Binance Spot (e.g. BTCUSDT, SOLUSDT).  \n- DO NOT include ETHUSDT.  \n- Must have **≥ $2 million daily trading volume**.  \n- No cap on volatility—target **> 10%** intraday moves.  \n- Avoid relying on brand recognition or history.\n\n---\n\n**Selection Priorities:**\n\n- Favor tokens showing **extreme breakout volume**, momentum, or reversal signals (≥ 15% intraday swings).  \n- Ensure at least **2 small-cap or meme tokens** with > 20% 24 h moves make the cut.  \n- Strong Layer 1/2 ecosystems still get weight but don’t exclude shorter-lived catalysts.\n\n---\n\n**Tool Instructions (Call Both News Sources):**\n\n1. **SerperSearch**  \n```json\n{ \"tool\": \"SerperSearch\", \"input\": { \"query\": \"<your custom query here>\" } }\n\n```\n\n2.  **SerpAPI**\n    \n\n```json\n{ \"tool\": \"SerpAPI\", \"input\": { \"query\": \"<your custom query here>\" } }\n\n```\n\n3.  **SocialSentimentTool**\n    \n\n```json\n{ \"tool\": \"SocialSentimentTool\", \"input\": { \"symbol\": \"<SYMBOL>\", \"name\": \"<Name>\" } }\n\n```\n\nYou must use **both SerperSearch and SerpAPI** for news. Always call **SocialSentimentTool**. Do not skip any.\n\n----------\n\n**ALWAYS FINISH WITH THE FOLLOWING FORMAT, DO NOT SKIP THE NEXT STEPS***\n\n**Final Output Format:** (most important step)\n\n```\nSelected Coins for Analysis: SYMBOL1, SYMBOL2, …, SYMBOL10\n\n```\n\nIf none qualify:\n\n```\nSelected Coins for Analysis: NONE\n\n```",
+        "options": {
+          "systemMessage": "```\nSYSTEM:\nYou are an expert crypto analyst AI agent. You will receive a list of token symbols (e.g. BTCUSDT, SOLUSDT) to analyze and decide which ones are best for short-term trading.\n\nTOOLS:\n- SerperSearch (query: string)  \n  “Execute a Google-style news query via Serper. The query can be any text you choose that will surface relevant price catalysts, project updates, or macro news about the token.”\n\n- SerpAPI (query: string)  \n  “Execute a deep Google-style search via SerpAPI. The query can be any text you choose to retrieve detailed results on token developments, on-chain events, or institutional insights.”\n\n- SocialSentimentTool (symbol: string, name: string)  \n  “Fetch Reddit & Twitter sentiment data for a given token symbol and its human-readable name.”\n\nINSTRUCTIONS:\n1. For each token symbol provided:\n    a. **Invent** a concise but effective news query for **SerperSearch** (e.g. “Bitcoin weekly rally catalysts” or “SOLUSDT new validator launch”).  \n    b. **Invent** a complementary query for **SerpAPI** (e.g. “Bitcoin hedge fund positioning” or “Solana ecosystem developer activity”).  \n    c. Call **SocialSentimentTool** with the exact `symbol` and `name` (e.g. `BTCUSDT`, `Bitcoin`).  \n    d. If available, fetch on-chain or volume data; discard tokens with < $5 million daily volume.\n\n2. **Selection criteria** (must meet all three):\n    - At least one of your news searches (Serper or SerpAPI) yields meaningful recent headlines.  \n    - Social sentiment data is present and indicates sufficient community interest.  \n    - Trading volume ≥ $5 million.\n\n3. Think through each step, then output in this exact format:\n\n```\n\nSelected Coins for Analysis: SYMBOL1, SYMBOL2\n\n```\nAnd before that, include a **brief reasoning** block showing:\n- The exact queries you used for each tool.\n- Key findings from SerperSearch and SerpAPI.\n- Sentiment summary from SocialSentimentTool.\n- Volume check.\n\nRULES:\n- Do **not** hard-code “symbol” into your query—craft queries yourself.\n- Do **not** hallucinate data.\n- Select **no more than 10** tokens.\n\n```",
+          "maxIterations": 50
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -4188,
+        750
+      ],
+      "id": "0b5e50e6-a1b4-42df-a3f1-fc7aa0de8332",
+      "name": "Scouter Agent1",
+      "retryOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "name": "SocialSentimentTool",
+        "description": "Call this tool to get the latest social media sentiment on the tool you want to research. The input should be one word only and it should the the name of the coin or the symbol you wanna research in Twitter (also known as X now) and Reddit.",
+        "workflowId": {
+          "__rl": true,
+          "value": "W2GIm2EjFCxztmDz",
+          "mode": "list",
+          "cachedResultName": "scouter_1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "symbol": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('symbol', ``, 'string') }}",
+            "name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('name', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "symbol",
+              "displayName": "symbol",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.1,
+      "position": [
+        -3980,
+        970
+      ],
+      "id": "ba31d505-b9be-4939-8ce3-39ebb685cd41",
+      "name": "SocialSentimentTool1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1836,
+        945
+      ],
+      "id": "c3354c8f-1c15-461f-8d49-673e665f57e5",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "TMg47sy3gpyHM1Ya",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"strategy\": {\n      \"type\": \"string\"\n    },\n    \"action\": {\n      \"type\": \"string\",\n      \"enum\": [\"BUY\", \"SELL\", \"REBALANCE\", \"WAIT\"]\n    },\n    \"buySymbol\": {\n      \"type\": [\"string\", \"null\"]\n    },\n    \"sellSymbol\": {\n      \"type\": [\"string\", \"null\"]\n    },\n    \"buyAllocationPercent\": {\n      \"type\": [\"number\", \"null\"]\n    },\n    \"sellAllocationPercent\": {\n      \"type\": [\"number\", \"null\"]\n    },\n    \"reason\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\"strategy\", \"action\", \"reason\"]\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -1716,
+        945
+      ],
+      "id": "cc55c4f5-17df-44d1-98ab-74b9f5048002",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "operation": "order",
+        "side": "SELL",
+        "symbol": "={{ $json.output.sellSymbol }}",
+        "quantity": "={{ $('Decision Maker Agent').item.json.output.sellQuantity }}",
+        "type": "MARKET"
+      },
+      "type": "n8n-nodes-binance-trade.binance",
+      "typeVersion": 1,
+      "position": [
+        228,
+        950
+      ],
+      "id": "d5fed487-b7c2-4c51-b4fb-f11a78d0290e",
+      "name": "SELL (REBALANCE)"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        1025
+      ],
+      "id": "bdcc4fa9-7113-4b87-a161-ffe9fee375b0",
+      "name": "Wait",
+      "webhookId": "4f923f06-becb-4ebd-88b6-a4f543fdddd9"
+    },
+    {
+      "parameters": {
+        "operation": "order",
+        "symbol": "={{ $('Decision Maker Agent').item.json.output.buySymbol }}",
+        "quantity": "={{ $('Decision Maker Agent').item.json.output.sellQuantity }}",
+        "type": "MARKET"
+      },
+      "type": "n8n-nodes-binance-trade.binance",
+      "typeVersion": 1,
+      "position": [
+        668,
+        1025
+      ],
+      "id": "258f211c-5767-4582-80b4-6289bf38de32",
+      "name": "BUY (REBALANCE)"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a parsing agent for an AI trading strategist.\n\nYou will receive a block of text that contains a strategist's analysis, including the strategy name, reasoning, and action recommendation.\n\nYour task is to return a clean JSON object with the following fields:\n\n- strategy (string)\n- action (BUY, SELL, REBALANCE, or WAIT)\n- buySymbol (string, or null if not applicable) with USDT next to it\n- sellSymbol (string, or null if not applicable) with USDT next to it\n- allocationPercent (number, or null if not provided)\n- reason (string)\n\nText:\n\"\"\"\n{{ $json.output }}\n\"\"\"\n\nONLY return a JSON object. No markdown, no explanation, no prefix, no code block. Example format:\n\n{\n  \"strategy\": \"Momentum Trading\",\n  \"action\": \"REBALANCE\",\n  \"buySymbol\": \"BTCUSDT\",\n  \"sellSymbol\": \"BNBUSDT\",\n  \"allocationPercent\": 90,\n  \"reason\": \"Capital shift from low-momentum BNB to high-momentum BTC enhances exposure to strongest trend.\"\n}\n",
+        "hasOutputParser": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.6,
+      "position": [
+        -1864,
+        725
+      ],
+      "id": "e2afb304-ec67-4f53-9885-cabd82960b69",
+      "name": "LLM Parser for Strategist Output"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.binance.com/api/v3/exchangeInfo?symbol={{ $json.output.buySymbol }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1048,
+        425
+      ],
+      "id": "660810c9-b530-4678-9901-a1fcc8d2b2e9",
+      "name": "Fetch exchangeInfo (BUY)"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"action\": {\n      \"type\": \"string\",\n      \"enum\": [\"BUY\", \"SELL\", \"REBALANCE\", \"WAIT\"]\n    },\n    \"sellSymbol\": {\n      \"type\": [\"string\", \"null\"]\n    },\n    \"buySymbol\": {\n      \"type\": [\"string\", \"null\"]\n    },\n    \"sellAllocationPercent\": {\n      \"type\": [\"number\", \"null\"]\n    },\n    \"buyAllocationPercent\": {\n      \"type\": [\"number\", \"null\"]\n    },\n    \"sellQuantity\": {\n      \"type\": [\"number\", \"null\"]\n    },\n    \"sellAmount\": {\n      \"type\": [\"number\", \"null\"]\n    },\n    \"buyQuantity\": {\n      \"type\": [\"number\", \"null\"]\n    },\n    \"buyAmount\": {\n      \"type\": [\"number\", \"null\"]\n    },\n    \"reason\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\"action\", \"reason\"]\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -192,
+        545
+      ],
+      "id": "57015eb0-d688-40dd-8406-6a281cd84531",
+      "name": "Structured Output Parser3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Grab decision + portfolio\nconst dec      = $('LLM Parser for Strategist Output').first().json.output;\nconst { action, buySymbol, sellSymbol } = dec;\nconst pct      = side => (dec[`${side}AllocationPercent`] ?? dec.allocationPercent ?? 100) / 100;\nconst port     = $('Aggregate (USDT + Holdings)').first().json;\nconst freeUSDT = parseFloat(port.balance) || 0;\nconst holdings = port.holdingsRaw || [];\n\n// 2. Build filter map (exchangeInfo ➞ symbols ➞ filters) \n//    + merge in any filters in incoming marketData\nconst symbolsList = [];\n$input.all().forEach(i => {\n  // from exchangeInfo responses\n  if (Array.isArray(i.json.symbols)) {\n    i.json.symbols.forEach(s => symbolsList.push({ symbol: s.symbol, filters: s.filters }));\n  }\n  // from your test-step / Summarize Data blobs\n  if (Array.isArray(i.json.marketData)) {\n    i.json.marketData.forEach(m => symbolsList.push({ symbol: m.symbol, filters: m.filters || [] }));\n  }\n});\nconst filtersMap = Object.fromEntries(symbolsList.map(s => [s.symbol, s.filters]));\n\n// 3. Build summaryMap as before\nconst sums       = $('Summarize Data').all().map(i => i.json);\nconst summaryMap = Object.fromEntries(sums.map(s => [s.symbol, s]));\n\n// 4. Helpers with fallbacks\nfunction roundQty(rawQty, symbol) {\n  const lot = (filtersMap[symbol] || []).find(f => f.filterType === 'LOT_SIZE');\n  if (lot) {\n    const step = +lot.stepSize, min = +lot.minQty;\n    const q = Math.floor(rawQty / step) * step;\n    return q < min ? null : q;\n  }\n  // ═══ no LOT_SIZE filter? truncate to 8 decimals rather than return null ═══\n  const q = Math.floor(rawQty * 1e8) / 1e8;\n  return q > 0 ? q : null;\n}\n\nfunction getMinNotional(symbol) {\n  const fn = (filtersMap[symbol] || []).find(f => f.filterType === 'NOTIONAL');\n  // ═══ no NOTIONAL filter? assume 0 so safety-check passes ═══\n  return fn ? +fn.minNotional : 0;\n}\n\nfunction makeLeg({ symbol, pctOf, priceKey, isSell = false, baseUSDT = freeUSDT }) {\n  const price   = +summaryMap[symbol]?.[priceKey] || 0;\n  const rawBase = isSell\n    ? (holdings.find(h => h.asset === symbol.replace('USDT',''))?.total || 0) * pctOf\n    : baseUSDT * pctOf;\n  const rawQty  = isSell ? rawBase : price > 0 ? rawBase / price : 0;\n  const qty     = roundQty(rawQty, symbol);\n  const amount  = qty != null ? +(qty * price).toFixed(8) : null;\n  const minNot  = getMinNotional(symbol);\n  return { qty, amount, minNot };\n}\n\n// 5. Prepare result template\nlet result = {\n  freeUsdt, usdt: freeUsdt,\n  sellSymbol: null, sellAllocationPercent: null, sellQuantity: null, sellProceedsUsdt: null, sellMinNotional: null,\n  buySymbol:  null, buyAllocationPercent:  null, buyQuantity:   null, buyAmount:         null, buyMinNotional: null,\n  marketData: [], reason: ''\n};\n\n// 6. Populate based on action\nswitch (action) {\n  case 'SELL': {\n    const { qty, amount, minNot } = makeLeg({\n      symbol: sellSymbol, pctOf: pct('sell'), priceKey: 'bidPrice', isSell: true\n    });\n    Object.assign(result, {\n      sellSymbol,\n      sellAllocationPercent: pct('sell') * 100,\n      sellQuantity:          qty,\n      sellProceedsUsdt:      amount,\n      sellMinNotional:       minNot,\n      usdt:                  freeUSDT + (amount || 0),\n      marketData:            [{ ...summaryMap[sellSymbol],   filters: filtersMap[sellSymbol]   || [] }],\n      reason:                `SELL only: sold ${qty} ${sellSymbol} for ${amount} USDT`\n    });\n    break;\n  }\n\n  case 'BUY': {\n    const { qty, amount, minNot } = makeLeg({\n      symbol: buySymbol, pctOf: pct('buy'), priceKey: 'askPrice'\n    });\n    Object.assign(result, {\n      buySymbol,\n      buyAllocationPercent: pct('buy') * 100,\n      buyQuantity:          qty,\n      buyAmount:            amount,\n      buyMinNotional:       minNot,\n      marketData:           [{ ...summaryMap[buySymbol],    filters: filtersMap[buySymbol]    || [] }],\n      usdt:                  freeUSDT,\n      reason:               `BUY only: allocated ${pct('buy')*100}% of ${freeUSDT} USDT into ${buySymbol}`\n    });\n    break;\n  }\n\n  case 'REBALANCE': {\n    // Sell leg\n    const sellLeg = makeLeg({\n      symbol: sellSymbol, pctOf: pct('sell'), priceKey: 'bidPrice', isSell: true\n    });\n    Object.assign(result, {\n      sellSymbol,\n      sellAllocationPercent: pct('sell') * 100,\n      sellQuantity:          sellLeg.qty,\n      sellProceedsUsdt:      sellLeg.amount,\n      sellMinNotional:       sellLeg.minNot\n    });\n    const postUSDT = freeUSDT + (sellLeg.amount || 0);\n\n    // Buy leg\n    const buyLeg = makeLeg({\n      symbol: buySymbol, pctOf: pct('buy'), priceKey: 'askPrice', baseUSDT: postUSDT\n    });\n    Object.assign(result, {\n      buySymbol,\n      buyAllocationPercent: pct('buy') * 100,\n      buyQuantity:          buyLeg.qty,\n      buyAmount:            buyLeg.amount,\n      buyMinNotional:       buyLeg.minNot,\n      usdt:                 postUSDT,\n      // ═══ include *both* legs in marketData for full context ═══\n      marketData: [\n        { ...summaryMap[sellSymbol], filters: filtersMap[sellSymbol] || [] },\n        { ...summaryMap[buySymbol],  filters: filtersMap[buySymbol]  || [] }\n      ],\n      reason: `REBALANCE: sold ${sellLeg.qty} ${sellSymbol} → +${sellLeg.amount} USDT; bought ${buyLeg.qty} ${buySymbol} → -${buyLeg.amount} USDT`\n    });\n    break;\n  }\n\n  default:\n    throw new Error(`Unsupported action: ${action}`);\n}\n\nreturn [{ json: result }];\n  buySymbol:   null, buyAllocationPercent:  null, buyQuantity:   null, buyAmount:         null, buyMinNotional: null,\n  marketData:  [],\n  reason: ''\n};\n\n// 5. Fill in based on action\nswitch (action) {\n  case 'SELL': {\n    const { qty, amount, minNot } = makeLeg({\n      symbol: sellSymbol, pctOf: pct('sell'), priceKey: 'bidPrice', isSell: true\n    });\n    Object.assign(result, {\n      sellSymbol,\n      sellAllocationPercent: pct('sell') * 100,\n      sellQuantity:          qty,\n      sellProceedsUsdt:      amount,\n      sellMinNotional:       minNot,\n      usdt:                  freeUSDT + (amount || 0),\n      marketData:            [{ ...summaryMap[sellSymbol], filters: filtersMap[sellSymbol] || [] }],\n      reason:                `SELL only: sold ${qty} ${sellSymbol} for ${amount} USDT`\n    });\n    break;\n  }\n  case 'BUY': {\n    const { qty, amount, minNot } = makeLeg({\n      symbol: buySymbol, pctOf: pct('buy'), priceKey: 'askPrice'\n    });\n    Object.assign(result, {\n      buySymbol,\n      buyAllocationPercent: pct('buy') * 100,\n      buyQuantity:          qty,\n      buyAmount:            amount,\n      buyMinNotional:       minNot,\n      marketData:           [{ ...summaryMap[buySymbol],  filters: filtersMap[buySymbol]  || [] }],\n      reason:               `BUY only: allocated ${pct('buy')*100}% of ${freeUSDT} USDT into ${buySymbol}`\n    });\n    break;\n  }\n  case 'REBALANCE': {\n    // Sell leg\n    const sellLeg = makeLeg({\n      symbol: sellSymbol, pctOf: pct('sell'), priceKey: 'bidPrice', isSell: true\n    });\n    Object.assign(result, {\n      sellSymbol,\n      sellAllocationPercent: pct('sell') * 100,\n      sellQuantity:          sellLeg.qty,\n      sellProceedsUsdt:      sellLeg.amount,\n      sellMinNotional:       sellLeg.minNot\n    });\n    const postUSDT = freeUSDT + (sellLeg.amount || 0);\n\n    // Buy leg\n    const buyLeg = makeLeg({\n      symbol: buySymbol, pctOf: pct('buy'), priceKey: 'askPrice', baseUSDT: postUSDT\n    });\n    Object.assign(result, {\n      buySymbol,\n      buyAllocationPercent: pct('buy') * 100,\n      buyQuantity:          buyLeg.qty,\n      buyAmount:            buyLeg.amount,\n      buyMinNotional:       buyLeg.minNot,\n      usdt:                 postUSDT,\n      marketData:           [{ ...summaryMap[buySymbol], filters: filtersMap[buySymbol] || [] }],\n      reason:               `REBALANCE: sold ${sellLeg.qty} ${sellSymbol} → +${sellLeg.amount} USDT; bought ${buyLeg.qty} ${buySymbol} → -${buyLeg.amount} USDT`\n    });\n    break;\n  }\n  default:\n    throw new Error(`Unsupported action: ${action}`);\n}\n\nreturn [{ json: result }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -828,
+        525
+      ],
+      "id": "41c4a889-34e1-4f0a-90db-26d58ea85357",
+      "name": "Compute Trade Context"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.binance.com/api/v3/exchangeInfo?symbol={{ $json.output.sellSymbol }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1048,
+        625
+      ],
+      "id": "e5dbdbd6-4757-4dd2-80c5-24000c6c9925",
+      "name": "Fetch exchangeInfo (SELL)"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.action }}",
+                    "rightValue": "SELL",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "78106229-9324-4eb9-ad67-2093d2461d52"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SELL"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c91060fd-8163-49d8-8d67-1dee8e843b31",
+                    "leftValue": "={{ $json.output.action }}",
+                    "rightValue": "BUY",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "BUY"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "43772815-4487-46f9-8f64-64feaca02401",
+                    "leftValue": "={{ $json.output.action }}",
+                    "rightValue": "REBALANCE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "REBALANCE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -1268,
+        525
+      ],
+      "id": "b5501a9b-d514-4538-8bdb-eada90698093",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-2025-04-14",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-2025-04-14"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -2152,
+        1095
+      ],
+      "id": "9f12e654-530d-4ee5-809e-d4acb7e8cb2b",
+      "name": "OpenAI 4.1",
+      "credentials": {
+        "openAiApi": {
+          "id": "TMg47sy3gpyHM1Ya",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "o4-mini",
+          "mode": "list",
+          "cachedResultName": "o4-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -608,
+        545
+      ],
+      "id": "ff582c76-b0dc-4bf9-8890-c3516525d12d",
+      "name": "OpenAI o4-mini",
+      "credentials": {
+        "openAiApi": {
+          "id": "TMg47sy3gpyHM1Ya",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini-2025-04-14",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini-2025-04-14"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -4220,
+        970
+      ],
+      "id": "5dd3070e-4a61-4ab0-b2c6-ef013335be58",
+      "name": "OpenAI 4.1-mini",
+      "notesInFlow": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "TMg47sy3gpyHM1Ya",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Grab the incoming JSON\nconst j = $input.first().json;\n\n// Format timestamp as “YYYY-MM-DD HH:mm:ss.SSS+00”\nconst timestamp = new Date()\n  .toISOString()\n  .replace('T', ' ')\n  .replace('Z', '+00');\n\n// Determine which message to log\nconst errorMsg = j.output\n  ? 'No coins selected for analysis'\n  : (typeof j.error === 'string'\n      ? j.error\n      : (j.error?.message ?? '<no message>')\n    );\n\n// Build the record\nreturn [{\n  json: {\n    workflow_id:   1,\n    workflow_name: 'main workflow',\n    node_name:     'scouter agent',\n    error_msg:     errorMsg,\n    timestamp:     timestamp,\n    input_data:    `Balance: ${j.balance} || Holdings: ${j.holdings}`,\n    execution_id:   $execution.id\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3560,
+        200
+      ],
+      "id": "2d37b2c0-a923-4764-97dd-90970719d0b1",
+      "name": "Scouter error log"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\n\nconst pad = (n, z = 2) => String(n).padStart(z, '0');\n\nconst formatted = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())} ` +\n                  `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}.` +\n                  `${pad(now.getUTCMilliseconds(), 3)}+00:00`;\n\nreturn [{\n  json: {\n    execution_id: $execution.id,\n    ended_at: formatted,\n    status: 'ERROR'\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2680,
+        200
+      ],
+      "id": "1156d8f9-1b84-4b5c-a547-dfb1b8c0b869",
+      "name": "End log2"
+    },
+    {
+      "parameters": {
+        "errorMessage": "No coins selected for analysis"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -2162,
+        200
+      ],
+      "id": "463e96bb-3c03-4410-916a-2c873a448090",
+      "name": "No Coins Selected1"
+    },
+    {
+      "parameters": {
+        "tableId": "workflow_errors",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "workflow_id",
+              "fieldValue": "={{ $json.workflow_id }}"
+            },
+            {
+              "fieldId": "workflow_name",
+              "fieldValue": "={{ $json.workflow_name }}"
+            },
+            {
+              "fieldId": "node_name",
+              "fieldValue": "={{ $json.node_name }}"
+            },
+            {
+              "fieldId": "error_msg",
+              "fieldValue": "={{ $json.error_msg }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $json.timestamp }}"
+            },
+            {
+              "fieldId": "input_data",
+              "fieldValue": "={{ $json.input_data }}"
+            },
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{$json.execution_id}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3340,
+        200
+      ],
+      "id": "a820a33e-edcd-40c3-8282-c47de8570956",
+      "name": "Log scouter error",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "workflow_executions",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "execution_id",
+              "condition": "eq",
+              "keyValue": "={{$json.execution_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "ended_at",
+              "fieldValue": "={{$json.ended_at}}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{$json.status}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2460,
+        200
+      ],
+      "id": "01f8c365-3b9a-4f71-8fa0-78653d42ed1a",
+      "name": "Log end3",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst pad = (n, z = 2) => String(n).padStart(z, '0');\n\n// Paraguay is GMT-3 (no DST currently)\nconst offsetMs = 3 * 60 * 60 * 1000;\nconst local = new Date(now.getTime() - offsetMs);\n\nconst formatted = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())} ` +\n                  `${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(local.getSeconds())}.` +\n                  `${pad(local.getMilliseconds(), 3)}-03:00`;\n\n\nreturn [{\n  json: {\n    execution_id: $execution.id,\n    name: \"main workflow\",\n    started_at: formatted,\n    status: 'started running'\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5320,
+        750
+      ],
+      "id": "75178c47-b3a9-47c5-a9c0-c355b794a708",
+      "name": "Start log"
+    },
+    {
+      "parameters": {
+        "tableId": "workflow_executions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{ $json.execution_id }}"
+            },
+            {
+              "fieldId": "name",
+              "fieldValue": "={{ $json.name }}"
+            },
+            {
+              "fieldId": "started_at",
+              "fieldValue": "={{ $json.started_at }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{ $json.status }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -5100,
+        750
+      ],
+      "id": "42d23e4b-dbbb-4ed3-a969-65104dff6c4d",
+      "name": "Log start",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Grab the incoming JSON\nconst j = $input.first().json;\n\n// Format timestamp as “YYYY-MM-DD HH:mm:ss.SSS+00”\nconst timestamp = new Date()\n  .toISOString()\n  .replace('T', ' ')\n  .replace('Z', '+00');\n\n// Determine which message to log\nconst errorMsg = j.output\n  ? 'Error on symbol format'\n  : (typeof j.error.code === 'string'\n      ? j.error.code\n      : (j.error?.message ?? '<no message>')\n    );\n\n// Build the record\nreturn [{\n  json: {\n    workflow_id:   1,\n    workflow_name: 'main workflow',\n    node_name:     'coin format',\n    error_msg:     errorMsg,\n    timestamp:     timestamp,\n    input_data:    $input.first().json.symbol,\n    execution_id:   $execution.id\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2900,
+        425
+      ],
+      "id": "3eea38c5-65ca-42eb-824e-bb94023d5ce5",
+      "name": "Filter error log"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst pad = (n, z = 2) => String(n).padStart(z, '0');\n\n// Paraguay is GMT-3 (no DST currently)\nconst offsetMs = 3 * 60 * 60 * 1000;\nconst local = new Date(now.getTime() - offsetMs);\n\nconst formatted = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())} ` +\n                  `${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(local.getSeconds())}.` +\n                  `${pad(local.getMilliseconds(), 3)}-03:00`;\n\nreturn [{\n  json: {\n    execution_id: $execution.id,\n    ended_at: formatted,\n    status: 'ERROR'\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2460,
+        425
+      ],
+      "id": "8685e2ed-20b1-44df-a15b-2aa6fecc38f7",
+      "name": "End log4"
+    },
+    {
+      "parameters": {
+        "errorMessage": "Possible Coin Format Error"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -1786,
+        425
+      ],
+      "id": "5360a587-dc6b-401e-a6eb-573d771223c1",
+      "name": "Fail on Symbol Format2"
+    },
+    {
+      "parameters": {
+        "tableId": "workflow_errors",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "workflow_id",
+              "fieldValue": "={{ $json.workflow_id }}"
+            },
+            {
+              "fieldId": "workflow_name",
+              "fieldValue": "={{ $json.workflow_name }}"
+            },
+            {
+              "fieldId": "node_name",
+              "fieldValue": "={{ $json.node_name }}"
+            },
+            {
+              "fieldId": "error_msg",
+              "fieldValue": "={{ $json.error_msg }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $json.timestamp }}"
+            },
+            {
+              "fieldId": "input_data",
+              "fieldValue": "={{ $json.input_data }}"
+            },
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{$json.execution_id}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2680,
+        425
+      ],
+      "id": "00ec2821-0083-45e5-bd0f-93d33253c4f7",
+      "name": "Log filter error",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "workflow_executions",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "execution_id",
+              "condition": "eq",
+              "keyValue": "={{$json.execution_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "ended_at",
+              "fieldValue": "={{$json.ended_at}}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{$json.status}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2162,
+        425
+      ],
+      "id": "727b65ea-af65-4137-bc40-59cb599cbd14",
+      "name": "Log end4",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Grab the incoming JSON\nconst j = $input.first().json;\n\n// Format timestamp as “YYYY-MM-DD HH:mm:ss.SSS+00”\nconst timestamp = new Date()\n  .toISOString()\n  .replace('T', ' ')\n  .replace('Z', '+00');\n\n// Determine which message to log\nconst errorMsg = j.output\n  ? 'Error on symbol format'\n  : (typeof j.error.code === 'string'\n      ? j.error.code\n      : (j.error?.message ?? '<no message>')\n    );\n\n// Build the record\nreturn [{\n  json: {\n    workflow_id:   1,\n    workflow_name: 'main workflow',\n    node_name:     'coin format',\n    error_msg:     errorMsg,\n    timestamp:     timestamp,\n    input_data:    $input.first().json.symbol,\n    execution_id:   $execution.id\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2900,
+        1425
+      ],
+      "id": "3b32fbb7-8e73-4b6a-9a76-9a4e87176208",
+      "name": "Filter error log1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst pad = (n, z = 2) => String(n).padStart(z, '0');\n\n// Paraguay is GMT-3 (no DST currently)\nconst offsetMs = 3 * 60 * 60 * 1000;\nconst local = new Date(now.getTime() - offsetMs);\n\nconst formatted = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())} ` +\n                  `${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(local.getSeconds())}.` +\n                  `${pad(local.getMilliseconds(), 3)}-03:00`;\n\nreturn [{\n  json: {\n    execution_id: $execution.id,\n    ended_at: formatted,\n    status: 'ERROR'\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2460,
+        1425
+      ],
+      "id": "1a2f3bd6-9584-4ffe-bf99-b47c94f7d534",
+      "name": "End log"
+    },
+    {
+      "parameters": {
+        "errorMessage": "Possible Coin Format Error"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -1786,
+        1425
+      ],
+      "id": "c369944a-d94f-4572-a2f7-9e20d79b9561",
+      "name": "Fail on Symbol Format"
+    },
+    {
+      "parameters": {
+        "tableId": "workflow_errors",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "workflow_id",
+              "fieldValue": "={{ $json.workflow_id }}"
+            },
+            {
+              "fieldId": "workflow_name",
+              "fieldValue": "={{ $json.workflow_name }}"
+            },
+            {
+              "fieldId": "node_name",
+              "fieldValue": "={{ $json.node_name }}"
+            },
+            {
+              "fieldId": "error_msg",
+              "fieldValue": "={{ $json.error_msg }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $json.timestamp }}"
+            },
+            {
+              "fieldId": "input_data",
+              "fieldValue": "={{ $json.input_data }}"
+            },
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{$json.execution_id}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2680,
+        1425
+      ],
+      "id": "064fa8c6-5f49-4f2a-abc9-de7d8eb588b4",
+      "name": "Log filter error1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "workflow_executions",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "execution_id",
+              "condition": "eq",
+              "keyValue": "={{$json.execution_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "ended_at",
+              "fieldValue": "={{$json.ended_at}}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{$json.status}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2162,
+        1425
+      ],
+      "id": "6e0da711-c277-4d6c-9c3c-91a21f793104",
+      "name": "Log end5",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst pad = (n, z = 2) => String(n).padStart(z, '0');\n\n// Paraguay is GMT-3 (no DST currently)\nconst offsetMs = 3 * 60 * 60 * 1000;\nconst local = new Date(now.getTime() - offsetMs);\n\nconst formatted = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())} ` +\n                  `${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(local.getSeconds())}.` +\n                  `${pad(local.getMilliseconds(), 3)}-03:00`;\n\nreturn [{\n  json: {\n    execution_id: $execution.id,\n    ended_at: formatted,\n    status: 'ERROR'\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -828,
+        1175
+      ],
+      "id": "6789127a-e5fc-4755-9628-a5f06e604ec0",
+      "name": "End log6"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Grab the incoming JSON\nconst j = $input.first().json;\n\n// Format timestamp as “YYYY-MM-DD HH:mm:ss.SSS+00”\nconst timestamp = new Date()\n  .toISOString()\n  .replace('T', ' ')\n  .replace('Z', '+00');\n\n// Build the record\nreturn [{\n  json: {\n    workflow_id:   1,\n    workflow_name: 'main workflow',\n    node_name:     'strategist agent',\n    error_msg:     j.error,\n    timestamp:     timestamp,\n    input_data:    j.summary,\n    execution_id:   $execution.id\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1786,
+        1175
+      ],
+      "id": "50b812f2-7848-44ba-bcdd-a75d15741024",
+      "name": "Strategist error log"
+    },
+    {
+      "parameters": {
+        "tableId": "workflow_errors",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "workflow_id",
+              "fieldValue": "={{ $json.workflow_id }}"
+            },
+            {
+              "fieldId": "workflow_name",
+              "fieldValue": "={{ $json.workflow_name }}"
+            },
+            {
+              "fieldId": "node_name",
+              "fieldValue": "={{ $json.node_name }}"
+            },
+            {
+              "fieldId": "error_msg",
+              "fieldValue": "={{ $json.error_msg }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $json.timestamp }}"
+            },
+            {
+              "fieldId": "input_data",
+              "fieldValue": "={{ $json.input_data }}"
+            },
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{$json.execution_id}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1488,
+        1175
+      ],
+      "id": "c8cb06a8-1d24-43d8-a94a-81c5cdd5cdf9",
+      "name": "Log strategist error",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "workflow_executions",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "execution_id",
+              "condition": "eq",
+              "keyValue": "={{$json.execution_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "ended_at",
+              "fieldValue": "={{$json.ended_at}}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{$json.status}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -410,
+        1175
+      ],
+      "id": "9d612c42-97ff-4fbc-bebe-4725b8a454b8",
+      "name": "Log end6",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "errorMessage": "WAIT action"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        8,
+        925
+      ],
+      "id": "f95f17ab-d3d5-4b11-aaef-56f8ca05e44e",
+      "name": "WAIT"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Grab the incoming JSON\nconst j = $input.first().json;\n\n// Format timestamp as “YYYY-MM-DD HH:mm:ss.SSS+00”\nconst timestamp = new Date()\n  .toISOString()\n  .replace('T', ' ')\n  .replace('Z', '+00');\n\n// Determine which message to log\nconst errorMsg = j.output\n  ? 'WAIT'\n  : (typeof j.strategy === 'string'\n      ? j.strategy\n      : (j.error?.message ?? '<no message>')\n    );\n\n// Build the record\nreturn [{\n  json: {\n    workflow_id:   1,\n    workflow_name: 'main workflow',\n    node_name:     'order',\n    error_msg:     errorMsg,\n    timestamp:     timestamp,\n    input_data:    $input.first().json.reasoning,\n    execution_id:   $execution.id\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1268,
+        925
+      ],
+      "id": "b445d390-26a4-4062-9f80-dc17f919820d",
+      "name": "Wait error log"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst pad = (n, z = 2) => String(n).padStart(z, '0');\n\n// Paraguay is GMT-3 (no DST currently)\nconst offsetMs = 3 * 60 * 60 * 1000;\nconst local = new Date(now.getTime() - offsetMs);\n\nconst formatted = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())} ` +\n                  `${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(local.getSeconds())}.` +\n                  `${pad(local.getMilliseconds(), 3)}-03:00`;\n\nreturn [{\n  json: {\n    execution_id: $execution.id,\n    ended_at: formatted,\n    status: 'WAIT'\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -828,
+        925
+      ],
+      "id": "95bf8377-2871-48d5-8f59-739588512d05",
+      "name": "End log5"
+    },
+    {
+      "parameters": {
+        "tableId": "workflow_errors",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "workflow_id",
+              "fieldValue": "={{ $json.workflow_id }}"
+            },
+            {
+              "fieldId": "workflow_name",
+              "fieldValue": "={{ $json.workflow_name }}"
+            },
+            {
+              "fieldId": "node_name",
+              "fieldValue": "={{ $json.node_name }}"
+            },
+            {
+              "fieldId": "error_msg",
+              "fieldValue": "={{ $json.error_msg }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $json.timestamp }}"
+            },
+            {
+              "fieldId": "input_data",
+              "fieldValue": "={{ $json.input_data }}"
+            },
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{$json.execution_id}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1048,
+        925
+      ],
+      "id": "b6b85725-eb32-4a60-ac64-3782d8edb759",
+      "name": "Log wait error",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "workflow_executions",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "execution_id",
+              "condition": "eq",
+              "keyValue": "={{$json.execution_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "ended_at",
+              "fieldValue": "={{$json.ended_at}}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{$json.status}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -410,
+        925
+      ],
+      "id": "b56bfbd3-bc8f-48ed-ba0b-b297db56c2ac",
+      "name": "Log end7",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Grab the incoming JSON\nconst j = $input.first().json;\n\n// Format timestamp as “YYYY-MM-DD HH:mm:ss.SSS+00”\nconst timestamp = new Date()\n  .toISOString()\n  .replace('T', ' ')\n  .replace('Z', '+00');\n\n// Build the record\nreturn [{\n  json: {\n    workflow_id:   1,\n    workflow_name: 'main workflow',\n    node_name:     'decision maker agent',\n    error_msg:     j.error,\n    timestamp:     timestamp,\n    input_data:    `TBC`,\n    execution_id:   $execution.id\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8,
+        325
+      ],
+      "id": "be7cd62c-9b9f-42e8-a366-0e2b52e39d62",
+      "name": "Decision maker error log"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst pad = (n, z = 2) => String(n).padStart(z, '0');\n\n// Paraguay is GMT-3 (no DST currently)\nconst offsetMs = 3 * 60 * 60 * 1000;\nconst local = new Date(now.getTime() - offsetMs);\n\nconst formatted = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())} ` +\n                  `${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(local.getSeconds())}.` +\n                  `${pad(local.getMilliseconds(), 3)}-03:00`;\n\nreturn [{\n  json: {\n    execution_id: $execution.id,\n    ended_at: formatted,\n    status: 'ERROR'\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        325
+      ],
+      "id": "bb70adf2-b7d2-4672-b01e-ecab33e089ac",
+      "name": "End log7"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "workflow_executions",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "execution_id",
+              "condition": "eq",
+              "keyValue": "={{$json.execution_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "ended_at",
+              "fieldValue": "={{$json.ended_at}}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{$json.status}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        668,
+        325
+      ],
+      "id": "918b3b53-039d-4da5-932e-2f399ae0a363",
+      "name": "Log end9",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "workflow_errors",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "workflow_id",
+              "fieldValue": "={{ $json.workflow_id }}"
+            },
+            {
+              "fieldId": "workflow_name",
+              "fieldValue": "={{ $json.workflow_name }}"
+            },
+            {
+              "fieldId": "node_name",
+              "fieldValue": "={{ $json.node_name }}"
+            },
+            {
+              "fieldId": "error_msg",
+              "fieldValue": "={{ $json.error_msg }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $json.timestamp }}"
+            },
+            {
+              "fieldId": "input_data",
+              "fieldValue": "={{ $json.input_data }}"
+            },
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{$json.execution_id}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        228,
+        325
+      ],
+      "id": "29025aa8-ad7f-4045-b7de-02a3c613e1b1",
+      "name": "Log decision maker error",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "workflow_executions",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "execution_id",
+              "condition": "eq",
+              "keyValue": "={{$json.execution_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "ended_at",
+              "fieldValue": "={{$json.ended_at}}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{$json.status}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1548,
+        775
+      ],
+      "id": "f236dc58-da5a-446b-97c6-8bd0f21a235c",
+      "name": "Log end10",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $('Scouter Agent1').first().json;\n\nconst rawOutput = j.output || \"\";\n\n// Extract the final output from triple backticks block\nconst matchOutput = rawOutput.match(/(Selected Coins for Analysis:\\s*.+?)\\s*```/);\nconst selectedCoins = matchOutput ? matchOutput[1].trim() : \"UNKNOWN\";\n\n// Remove the ``` block from the reasoning\nconst reasoning = rawOutput.replace(/```[\\s\\S]*?```/, \"\").trim();\n\n// Error detection\nconst errorMsg = j.output\n  ? null\n  : (\n      typeof j.error === 'string'\n        ? j.error\n        : (j.error?.message || j.error?.errorMessage || '<no message>')\n    );\n\n// Optional: pull balance and holdings from a previous node if needed\nconst balance = $('Aggregate (USDT + Holdings)').first().json.balance || 'N/A';\nconst holdings = $('Aggregate (USDT + Holdings)').first().json.holdings || 'N/A';\n\nreturn [{\n  json: {\n    execution_id: $execution.id,\n    agent_name: 'strategist',\n    input_data: `Balance: ${balance} - Holdings: ${holdings}`,\n    output_data: selectedCoins,\n    reasoning: reasoning,\n    error: errorMsg\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1268,
+        1175
+      ],
+      "id": "7ce47b5b-7607-4312-9fda-6d2ac17aa1ea",
+      "name": "Strategist agent log"
+    },
+    {
+      "parameters": {
+        "tableId": "agent_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{ $json.execution_id }}"
+            },
+            {
+              "fieldId": "agent_name",
+              "fieldValue": "={{ $json.agent_name }}"
+            },
+            {
+              "fieldId": "input_data",
+              "fieldValue": "={{ $json.input_data }}"
+            },
+            {
+              "fieldId": "output_data",
+              "fieldValue": "={{ $json.output_data }}"
+            },
+            {
+              "fieldId": "reasoning",
+              "fieldValue": "={{ $json.reasoning }}"
+            },
+            {
+              "fieldId": "error",
+              "fieldValue": "={{ $json.error }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1048,
+        1175
+      ],
+      "id": "bf89a225-82b4-4032-831e-8570afb790cf",
+      "name": "Log strategist agent",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "agent_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{ $json.execution_id }}"
+            },
+            {
+              "fieldId": "agent_name",
+              "fieldValue": "={{ $json.agent_name }}"
+            },
+            {
+              "fieldId": "input_data",
+              "fieldValue": "={{ $json.input_data }}"
+            },
+            {
+              "fieldId": "output_data",
+              "fieldValue": "={{ $json.output_data }}"
+            },
+            {
+              "fieldId": "reasoning",
+              "fieldValue": "={{ $json.reasoning }}"
+            },
+            {
+              "fieldId": "error",
+              "fieldValue": "={{ $json.error }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2900,
+        200
+      ],
+      "id": "6a2a6450-0cad-4d3a-af7d-01db512c6e31",
+      "name": "Log scouter agent",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yF1effYRVL7LYOZ7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $('Scouter Agent1').first().json;\n\nconst rawOutput = j.output || \"\";\n\n// Extract the final output from triple backticks block\nconst matchOutput = rawOutput.match(/(Selected Coins for Analysis:\\s*.+?)\\s*```/);\nconst selectedCoins = matchOutput ? matchOutput[1].trim() : \"UNKNOWN\";\n\n// Remove the ``` block from the reasoning\nconst reasoning = rawOutput.replace(/```[\\s\\S]*?```/, \"\").trim();\n\n// Error detection\nconst errorMsg = j.output\n  ? null\n  : (\n      typeof j.error === 'string'\n        ? j.error\n        : (j.error?.message || j.error?.errorMessage || '<no message>')\n    );\n\n// Optional: pull balance and holdings from a previous node if needed\nconst balance = $('Aggregate (USDT + Holdings)').first().json.balance || 'N/A';\nconst holdings = $('Aggregate (USDT + Holdings)').first().json.holdings || 'N/A';\n\nreturn [{\n  json: {\n    execution_id: $execution.id,\n    agent_name: 'scouter',\n    input_data: `Balance: ${balance} - Holdings: ${holdings}`,\n    output_data: selectedCoins,\n    reasoning: reasoning,\n    error: errorMsg\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3120,
+        200
+      ],
+      "id": "4a2f7c6b-f1ff-4763-9587-dc41250c4108",
+      "name": "Scouter agent log"
+    }
+  ],
+  "pinData": {
+    "Schedule Trigger": [
+      {
+        "json": {
+          "timestamp": "2025-05-24T11:45:21.007-04:00",
+          "Readable date": "May 24th 2025, 11:45:21 am",
+          "Readable time": "11:45:21 am",
+          "Day of week": "Saturday",
+          "Year": "2025",
+          "Month": "May",
+          "Day of month": "24",
+          "Hour": "11",
+          "Minute": "45",
+          "Second": "21",
+          "Timezone": "America/New_York (UTC-04:00)"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Check If Valid Output From Scouter": {
+      "main": [
+        [
+          {
+            "node": "Scouter error log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Selected Coins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structure Trade Log": {
+      "main": [
+        [
+          {
+            "node": "Store Trade Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Crypto Data": {
+      "main": [
+        [
+          {
+            "node": "Summarize Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Prices 24hr": {
+      "main": [
+        [
+          {
+            "node": "Merge Crypto Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Filter error log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SELL Order": {
+      "main": [
+        [
+          {
+            "node": "Structure Trade Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUY Order": {
+      "main": [
+        [
+          {
+            "node": "Structure Trade Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DECISION": {
+      "main": [
+        [
+          {
+            "node": "BUY Order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SELL Order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SELL (REBALANCE)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ORDER": {
+      "main": [
+        [
+          {
+            "node": "Wait error log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Account": {
+      "main": [
+        [
+          {
+            "node": "Filter Balances",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Strategist Agent": {
+      "main": [
+        [
+          {
+            "node": "LLM Parser for Strategist Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Strategist error log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "Decision Maker Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Maker Agent": {
+      "main": [
+        [
+          {
+            "node": "DECISION",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Decision maker error log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Start log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Symbols": {
+      "main": [
+        [
+          {
+            "node": "Fetch Prices 24hr",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Prices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merges Summary": {
+      "main": [
+        [
+          {
+            "node": "Strategist Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Data": {
+      "main": [
+        [
+          {
+            "node": "Merges Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Prices": {
+      "main": [
+        [
+          {
+            "node": "Merge Crypto Data",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "Filter error log1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate (USDT + Holdings)": {
+      "main": [
+        [
+          {
+            "node": "Scouter Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Balances": {
+      "main": [
+        [
+          {
+            "node": "Aggregate (USDT + Holdings)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Selected Coins": {
+      "main": [
+        [
+          {
+            "node": "Filter Symbols",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Trade Log": {
+      "main": [
+        [
+          {
+            "node": "Log end",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log end": {
+      "main": [
+        [
+          {
+            "node": "Log end10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerperSearch": {
+      "ai_tool": [
+        [
+          {
+            "node": "Scouter Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SocialSentimentTool1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Scouter Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scouter Agent1": {
+      "main": [
+        [
+          {
+            "node": "Check If Valid Output From Scouter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Scouter error log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LLM Parser for Strategist Output",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "LLM Parser for Strategist Output",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SELL (REBALANCE)": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Structure Trade Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "BUY (REBALANCE)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUY (REBALANCE)": {
+      "main": [
+        [
+          {
+            "node": "Structure Trade Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Parser for Strategist Output": {
+      "main": [
+        [
+          {
+            "node": "ORDER",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch exchangeInfo (BUY)": {
+      "main": [
+        [
+          {
+            "node": "Compute Trade Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser3": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Decision Maker Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Trade Context": {
+      "main": [
+        [
+          {
+            "node": "Decision Maker Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch exchangeInfo (SELL)": {
+      "main": [
+        [
+          {
+            "node": "Compute Trade Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Fetch exchangeInfo (SELL)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch exchangeInfo (BUY)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch exchangeInfo (BUY)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch exchangeInfo (SELL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI 4.1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Strategist Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI o4-mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Decision Maker Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI 4.1-mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Scouter Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scouter error log": {
+      "main": [
+        [
+          {
+            "node": "Log scouter error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "End log2": {
+      "main": [
+        [
+          {
+            "node": "Log end3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log scouter error": {
+      "main": [
+        [
+          {
+            "node": "Scouter agent log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log end3": {
+      "main": [
+        [
+          {
+            "node": "No Coins Selected1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start log": {
+      "main": [
+        [
+          {
+            "node": "Log start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log start": {
+      "main": [
+        [
+          {
+            "node": "Get Account",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter error log": {
+      "main": [
+        [
+          {
+            "node": "Log filter error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "End log4": {
+      "main": [
+        [
+          {
+            "node": "Log end4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log filter error": {
+      "main": [
+        [
+          {
+            "node": "End log4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log end4": {
+      "main": [
+        [
+          {
+            "node": "Fail on Symbol Format2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter error log1": {
+      "main": [
+        [
+          {
+            "node": "Log filter error1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "End log": {
+      "main": [
+        [
+          {
+            "node": "Log end5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log filter error1": {
+      "main": [
+        [
+          {
+            "node": "End log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log end5": {
+      "main": [
+        [
+          {
+            "node": "Fail on Symbol Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "End log6": {
+      "main": [
+        [
+          {
+            "node": "Log end6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Strategist error log": {
+      "main": [
+        [
+          {
+            "node": "Log strategist error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log strategist error": {
+      "main": [
+        [
+          {
+            "node": "Strategist agent log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait error log": {
+      "main": [
+        [
+          {
+            "node": "Log wait error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "End log5": {
+      "main": [
+        [
+          {
+            "node": "Log end7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log wait error": {
+      "main": [
+        [
+          {
+            "node": "End log5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log end7": {
+      "main": [
+        [
+          {
+            "node": "WAIT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision maker error log": {
+      "main": [
+        [
+          {
+            "node": "Log decision maker error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "End log7": {
+      "main": [
+        [
+          {
+            "node": "Log end9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log decision maker error": {
+      "main": [
+        [
+          {
+            "node": "End log7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Strategist agent log": {
+      "main": [
+        [
+          {
+            "node": "Log strategist agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log strategist agent": {
+      "main": [
+        [
+          {
+            "node": "End log6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log scouter agent": {
+      "main": [
+        [
+          {
+            "node": "End log2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scouter agent log": {
+      "main": [
+        [
+          {
+            "node": "Log scouter agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bb74b193-0df1-466f-a0df-7be6f8089129",
+  "meta": {
+    "instanceId": "56b3beeb1e4efc4b138f329abd2bff0db0fd48c19026e0f83a6234068bb09a83"
+  },
+  "id": "gEOsMJEWogCwJKDo",
+  "tags": []
+}
