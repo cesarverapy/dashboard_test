@@ -1,8 +1,9 @@
 # Agent Dashboard
 
 This project includes a lightweight dashboard located in the `dashboard` folder.
-It displays recent entries from the `error_logs` and `execution_logs` tables
-stored in Supabase.
+It displays recent entries from the `error_logs`, `execution_logs`, and
+`executed_trades` tables stored in Supabase. Aggregate charts show error counts
+and trade volume over time.
 
 ## Setup
 
@@ -30,11 +31,13 @@ stored in Supabase.
 
 ## Expected Data Schema
 
-The dashboard expects two tables in Supabase:
+The dashboard expects three tables in Supabase:
 
 - **error_logs** – should contain at least `timestamp` and `message` columns.
 - **execution_logs** – should contain `timestamp`, `action`, `symbol`, and
   `details` columns describing each agent decision.
+- **executed_trades** – should contain `timestamp` and `trade_amount` columns for
+  aggregating trade volume.
 
 ## Development
 
