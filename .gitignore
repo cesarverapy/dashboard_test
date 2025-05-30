@@ -1,12 +1,10 @@
 # Environment files
 .env
 .env.*
+dashboard/env.js
 
-# Node modules and build output
-node_modules/
-.DS_Store
-
-# Dashboard credentials
-/dashboard/env.js
-
+# Python
 __pycache__/
+
+# Node
+node_modules/

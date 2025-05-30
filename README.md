@@ -15,7 +15,12 @@ This repository includes a simple dashboard for monitoring the crypto agent's ac
    ```bash
    pip install -r requirements.txt
    ```
-4. Serve the contents of the `dashboard` folder:
+4. Run the test suite to verify everything is set up correctly:
+   ```bash
+   pytest -q
+   npm test
+   ```
+5. Serve the contents of the `dashboard` folder:
    ```bash
    npx serve dashboard
    ```
@@ -23,12 +28,7 @@ This repository includes a simple dashboard for monitoring the crypto agent's ac
    ```bash
    python -m http.server --directory dashboard
    ```
-5. Open `http://localhost:3000` (or the port shown) in your browser.
-6. Run the basic checks to verify your environment:
-   ```bash
-   npm test
-   pytest -q
-   ```
+6. Open `http://localhost:3000` (or the port shown) in your browser.
 
 The dashboard fetches logs every 30 seconds and displays charts of recent activity.
 
@@ -43,3 +43,12 @@ The expected schema for logs is minimal:
 `execution_logs` should include at least `timestamp`, `action`, `symbol` and a `details` field.
 
 `error_logs` should include `timestamp` and `message` fields.
+
+## Running tests
+
+Execute the Python and Node checks to ensure the code is valid:
+
+```bash
+pytest -q
+npm test
+```
