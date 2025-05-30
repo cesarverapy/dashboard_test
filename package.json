@@ -1,7 +1,6 @@
 {
   "name": "dashboard",
-  "version": "1.0.0",
-  "scripts": {
+  "version": "1.0.0",  "scripts": {
     "test": "node --check dashboard/app.js && node --check dashboard/supabaseClient.js && node --check dashboard/env.example.js"
   }
 }
