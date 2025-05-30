@@ -1,37 +1,35 @@
-# Agent Dashboard
-This project contains a simple dashboard that visualises logs from the agent stored in Supabase.
+# Dashboard
+
+This repository includes a simple dashboard for monitoring the crypto agent's activity.
+
+## Prerequisites
+
+- Node.js environment capable of serving static files (e.g. using `npx serve` or `python -m http.server`)
+- A Supabase project containing `execution_logs` and `error_logs` tables
 
 ## Setup
 
-1. Copy `.env.example` to `.env` and fill in your Supabase credentials:
+1. Copy `.env.example` to `.env` and populate `SUPABASE_URL` and `SUPABASE_ANON_KEY` with your project's credentials.
+2. Serve the contents of the `dashboard` folder:
+   ```bash
+   npx serve dashboard
+   ```
+   or using Python:
+   ```bash
+   python -m http.server --directory dashboard
+   ```
+3. Open `http://localhost:3000` (or the port shown) in your browser.
 
-```bash
-cp .env.example .env
-# edit .env with your values
-```
+The dashboard fetches logs every 30 seconds and displays charts of recent activity.
 
-`dashboard/supabaseClient.js` reads the variables `VITE_SUPABASE_URL` and
-`VITE_SUPABASE_ANON_KEY` when bundled with a tool like Vite. If no bundler is
-used you can define `window.SUPABASE_URL` and `window.SUPABASE_ANON_KEY` in a
-script before loading `app.js`.
+### File overview
 
-2. Serve the dashboard directory using any static server:
+- `dashboard/index.html` – entry point loading React and Chart.js
+- `dashboard/app.js` – main application logic for fetching data and rendering charts
+- `dashboard/supabaseClient.js` – Supabase client configured via environment variables or global variables
 
-```bash
-npx serve dashboard
-# or
-python3 -m http.server 8080 -d dashboard
-```
+The expected schema for logs is minimal:
 
-Then open `http://localhost:8080` (or the port you chose) in your browser.
+`execution_logs` should include at least `timestamp`, `action`, `symbol` and a `details` field.
 
-## Features
-
-- Lists the 50 most recent executions and errors
-- Automatically refreshes data every 30 seconds
-- Charts execution volume by action and error counts over time using Chart.js
-
-The dashboard expects two tables in Supabase: `execution_logs` and `error_logs`.
-Each should contain a `timestamp` column. Executions benefit from fields like
-`action`, `symbol`, or `details`, while errors should include a descriptive
-`message`.
+`error_logs` should include `timestamp` and `message` fields.

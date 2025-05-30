@@ -5,14 +5,8 @@ function Dashboard() {
   const [errors, setErrors] = useState([]);
   const [executions, setExecutions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const execChartRef = useRef(null);
-  const errorChartRef = useRef(null);
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000); // refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
 
   async function fetchData() {
     const { data: errorData } = await supabase
@@ -27,58 +21,44 @@ function Dashboard() {
       .order('timestamp', { ascending: false })
       .limit(50);
 
-    const errorsList = errorData ?? [];
-    const executionsList = execData ?? [];
-    setErrors(errorsList);
-    setExecutions(executionsList);
+    setErrors(errorData ?? []);
+    setExecutions(execData ?? []);
     setLoading(false);
-    updateCharts(errorsList, executionsList);
   }
 
-  function updateCharts(errorsList, executionsList) {
-    // Execution chart: counts per action (buy/sell)
-    const actionCounts = executionsList.reduce((acc, e) => {
-      if (e.action) {
-        acc[e.action] = (acc[e.action] || 0) + 1;
-      }
+  useEffect(() => {
+    fetchData();
+    const id = setInterval(fetchData, 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const counts = executions.reduce((acc, e) => {
+      acc[e.action] = (acc[e.action] || 0) + 1;
       return acc;
     }, {});
-    const actions = Object.keys(actionCounts);
-    const actionValues = Object.values(actionCounts);
-
-    if (execChartRef.current) {
-      execChartRef.current.destroy();
-    }
-    const ctx1 = document.getElementById('executionChart').getContext('2d');
-    execChartRef.current = new Chart(ctx1, {
+    const labels = Object.keys(counts);
+    const data = Object.values(counts);
+    if (chartInstance.current) chartInstance.current.destroy();
+    chartInstance.current = new Chart(chartRef.current, {
       type: 'bar',
       data: {
-        labels: actions,
-        datasets: [{ label: 'Executions', data: actionValues, backgroundColor: '#60a5fa' }]
-      }
+        labels,
+        datasets: [
+          {
+            label: 'Executions',
+            data,
+            backgroundColor: '#3b82f6',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+      },
     });
-
-    // Error chart: count per day
-    const errorCounts = errorsList.reduce((acc, e) => {
-      const day = e.timestamp ? e.timestamp.slice(0, 10) : 'unknown';
-      acc[day] = (acc[day] || 0) + 1;
-      return acc;
-    }, {});
-    const days = Object.keys(errorCounts);
-    const dayValues = Object.values(errorCounts);
-
-    if (errorChartRef.current) {
-      errorChartRef.current.destroy();
-    }
-    const ctx2 = document.getElementById('errorChart').getContext('2d');
-    errorChartRef.current = new Chart(ctx2, {
-      type: 'line',
-      data: {
-        labels: days,
-        datasets: [{ label: 'Errors', data: dayValues, borderColor: '#f87171', fill: false }]
-      }
-    });
-  }
+  }, [executions]);
 
   if (loading) {
     return React.createElement('div', { className: 'loading' }, 'Loading...');
@@ -88,6 +68,12 @@ function Dashboard() {
     'div',
     { className: 'dashboard' },
     React.createElement('h1', null, 'Agent Dashboard'),
+    React.createElement(
+      'section',
+      null,
+      React.createElement('h2', null, 'Execution Summary'),
+      React.createElement('canvas', { ref: chartRef, id: 'execChart' })
+    ),
     React.createElement(
       'section',
       null,
@@ -139,18 +125,7 @@ function Dashboard() {
           )
         )
       )
-    ),
-    React.createElement(
-      'section',
-      null,
-      React.createElement('h2', null, 'Execution Summary'),
-      React.createElement('canvas', { id: 'executionChart' })
-    ),
-    React.createElement(
-      'section',
-      null,
-      React.createElement('h2', null, 'Error Trend'),
-      React.createElement('canvas', { id: 'errorChart' })
+
     )
   );
 }
