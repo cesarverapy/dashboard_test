@@ -33,4 +33,3 @@ The expected schema for logs is minimal:
 `execution_logs` should include at least `timestamp`, `action`, `symbol` and a `details` field.
 
 `error_logs` should include `timestamp` and `message` fields.
-
