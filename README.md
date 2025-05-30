@@ -9,12 +9,13 @@ This repository includes a simple dashboard for monitoring the crypto agent's ac
 
 ## Setup
 
-1. Copy `.env.example` to `.env` and populate `SUPABASE_URL` and `SUPABASE_ANON_KEY` with your project's credentials.
-2. Install Python dependencies (required for optional scripts) using:
+1. Copy `dashboard/env.example.js` to `dashboard/env.js` and fill in your Supabase credentials.
+2. (Optional) Create a `.env` file at the project root if you plan to use a bundler that injects environment variables.
+3. Install Python dependencies (required for optional scripts) using:
    ```bash
    pip install -r requirements.txt
    ```
-3. Serve the contents of the `dashboard` folder:
+4. Serve the contents of the `dashboard` folder:
    ```bash
    npx serve dashboard
    ```
@@ -22,7 +23,12 @@ This repository includes a simple dashboard for monitoring the crypto agent's ac
    ```bash
    python -m http.server --directory dashboard
    ```
-4. Open `http://localhost:3000` (or the port shown) in your browser.
+5. Open `http://localhost:3000` (or the port shown) in your browser.
+6. Run the basic checks to verify your environment:
+   ```bash
+   npm test
+   pytest -q
+   ```
 
 The dashboard fetches logs every 30 seconds and displays charts of recent activity.
 

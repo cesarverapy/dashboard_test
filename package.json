@@ -1,0 +1,8 @@
+{
+  "name": "dashboard",
+  "version": "1.0.0",
+  "description": "Simple dashboard to monitor agent logs",
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0"
+  }
+}
