@@ -10,7 +10,11 @@ This repository includes a simple dashboard for monitoring the crypto agent's ac
 ## Setup
 
 1. Copy `.env.example` to `.env` and populate `SUPABASE_URL` and `SUPABASE_ANON_KEY` with your project's credentials.
-2. Serve the contents of the `dashboard` folder:
+2. Install Python dependencies (required for optional scripts) using:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Serve the contents of the `dashboard` folder:
    ```bash
    npx serve dashboard
    ```
@@ -18,7 +22,7 @@ This repository includes a simple dashboard for monitoring the crypto agent's ac
    ```bash
    python -m http.server --directory dashboard
    ```
-3. Open `http://localhost:3000` (or the port shown) in your browser.
+4. Open `http://localhost:3000` (or the port shown) in your browser.
 
 The dashboard fetches logs every 30 seconds and displays charts of recent activity.
 
