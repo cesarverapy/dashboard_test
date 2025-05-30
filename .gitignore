@@ -1,0 +1,10 @@
+# Environment files
+.env
+.env.*
+dashboard/env.js
+
+# Python
+__pycache__/
+
+# Node
+node_modules/
