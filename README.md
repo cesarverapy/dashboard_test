@@ -5,7 +5,8 @@ This repository includes a simple dashboard for monitoring the crypto agent's ac
 ## Prerequisites
 
 - Node.js environment capable of serving static files (e.g. using `npx serve` or `python -m http.server`)
-- A Supabase project containing `execution_logs` and `error_logs` tables
+- A Supabase project containing `execution_logs`, `executed_trades`, `agent_logs`, and `workflow_errors` tables
+- The repository includes an `n8n` workflow export named `pre1_7 (2).json`. Use the **Import from File** option in n8n to load it, configure your Supabase credentials and run the workflow once to populate the tables with sample data.
 
 ## Setup
 
@@ -40,9 +41,10 @@ The dashboard fetches logs every 30 seconds and displays charts of recent activi
 
 The expected schema for logs is minimal:
 
-`execution_logs` should include at least `timestamp`, `action`, `symbol` and a `details` field.
-
-`error_logs` should include `timestamp` and `message` fields.
+- **`execution_logs`** – actions taken by the agent. These power the "Execution Summary" chart and the "Recent Executions" table. Each row should contain at least `timestamp`, `action`, `symbol` and a `details` field.
+- **`executed_trades`** – every trade executed by the agent. The dashboard uses this table for the portfolio overview, the latest trades table, the profit chart and strategy effectiveness stats. Required fields include `timestamp`, `side`, `symbol`, `price` and `quantity`.
+- **`agent_logs`** – reasoning or decision logs produced by the agent. Shown in the "Agent Reasoning Logs" list. Include a `timestamp` and text columns such as `reasoning` or `error`.
+- **`workflow_errors`** – errors captured from the workflow. Displayed in the "Recent Errors" section. Should have `timestamp` and `message` fields.
 
 ## Running tests
 
