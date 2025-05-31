@@ -54,3 +54,15 @@ Execute the Python and Node checks to ensure the code is valid:
 pytest -q
 npm test
 ```
+
+## Docker
+
+Build the Docker image:
+```bash
+docker build -t dashboard .
+```
+Run the container:
+```bash
+docker run -p 3000:3000 dashboard
+```
+Then open `http://localhost:3000`.
